@@ -4,6 +4,7 @@ import torch.nn as nn
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 from torch import optim
+from torch.optim.lr_scheduler import CosineAnnealingLR
 from utils import *
 from modules import UNet
 import logging
@@ -64,6 +65,7 @@ def train(args):
     dataloader = get_data(args)
     model = UNet().to(device)
     optimizer = optim.AdamW(model.parameters(), lr=args.lr)
+    scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, eta_min=5e-7, last_epoch=-1, verbose=True)
     mse = nn.MSELoss()
     diffusion = Diffusion(img_size=args.image_size, device=device)
     logger = SummaryWriter(os.path.join("runs", args.run_name))
@@ -85,6 +87,8 @@ def train(args):
 
             pbar.set_postfix(MSE=loss.item())
             logger.add_scalar("MSE", loss.item(), global_step=epoch * l + i)
+            
+        scheduler.step()
 
         sampled_images = diffusion.sample(model, n=images.shape[0])
         save_images(sampled_images, os.path.join("results", args.run_name, f"{epoch}.jpg"))
@@ -101,7 +105,8 @@ def launch():
     args.image_size = 64
     args.dataset_path = r"/home/z3289452/data/kelvinwakes/img_onedir"
     args.device = "cuda"
-    args.lr = 1e-4
+    args.lr = 3e-4
+    print(args)
     train(args)
 
 
